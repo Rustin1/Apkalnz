@@ -1,0 +1,134 @@
+
+        body {
+            overflow-x: auto;
+        }
+
+        body {
+            background-image: url("https://static.vecteezy.com/system/resources/previews/005/585/911/original/abstract-dark-purple-background-overlap-layer-on-dark-space-for-background-design-exclusive-wallpaper-design-for-poster-brochure-presentation-website-etc-vector.jpg");
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            color: black;
+            height: 100%;
+        }
+        h1 {
+
+                font-size: 50px;
+                text-align: center;
+	            color: #fff;
+	            background-color: rgba(255, 255, 255, 0.30);
+                padding: 10px;
+        }
+        h2 {
+                font-size: 40px;
+                font-family: 'Times New Roman';
+                text-align: center;
+	            color: #fff;
+	            background-color: rgba(255, 255, 255, 0.1);
+
+        }
+        h3 {
+                font-size: 35px;
+                text-align: center;
+	            color: #fff;
+	            background-color: rgba(0, 0, 0, 0.05);
+
+
+        }
+        .guzik {
+            text-align: center;
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.60);
+            padding: 5px;
+        }
+
+
+        th {
+            width: 300px;
+            background-color: rgba(0, 0, 0, 0.25);
+            vertical-align: top;
+            text-align: center;
+            color: #FFF;
+            padding: 30px
+
+        }
+
+
+        td {
+            width: 30px;
+            height: 100%;
+            border: 20px;
+            padding: 30px
+        }
+
+        table {
+
+            text-align: center;
+            color: #000;
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 2px
+        }
+
+
+
+        FORM {
+            text-align: center;
+            color: #fff;
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 2px
+        }
+
+
+        p {
+            text-align: center;
+            color: #fff;
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 2px;
+            vertical-align: bottom;
+        }
+        .poletekstowe{
+            text-align: left;
+	        color: #fff;
+	        background-color: rgba(0, 0, 0, 0.05);
+            padding: 0.5%;
+	        margin-left: 37%;
+        }
+        .poletekstowe2{
+            height: 100%;
+            text-align: left;
+	        color: #fff;
+	        background-color: rgba(0, 0, 0, 0.05);
+
+        }
+        a{
+            color: #fff;
+        }
+          #floatingControls {
+            position: fixed;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            top: 50%;
+            width: 50%;
+            transform: translate(70%, 400%);
+        }
+
+        #floatingControls button {
+            margin: 5px;
+            padding: 8px;
+        }
+        .chords{
+            color: white;
+            text-align: justify-all;
+            padding-right: -50%;
+            width: 50%;
+            transform: translate(20%, 0%);
+        }
+        .komentarze{
+            padding-left: 105%;
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.60);
+            padding: 2px
+        }
+

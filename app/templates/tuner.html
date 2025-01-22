@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stroik Gitarowy</title>
+    <style>
+        body {
+            text-align: center;
+        }
+        .string-buttons {
+            margin-bottom: 20px;
+        }
+        .string-button {
+            font-size: 20px;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+        }
+        .string-button.active {
+            background-color: green;
+            color: white;
+            border: 2px solid green;
+        }
+        .note {
+            font-size: 32px;
+            margin-top: 30px;
+        }
+        .freq-difference {
+            font-size: 24px;
+            margin-top: 10px;
+        }
+        #micStatus {
+            margin-top: 20px;
+            color: green;
+        }
+        #currentFrequency {
+            margin-top: 20px;
+            font-size: 20px;
+            color: #333;
+        }
+        #noteDisplay {
+            font-size: 28px;
+            margin-top: 20px;
+        }
+        .correct {
+            color: green;
+        }
+        .high {
+            color: red;
+        }
+        .low {
+            color: blue;
+        }
+    </style>
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static 'style.css' %}">
+</head>
+<body>
+    <table>
+		<tr>
+			<th><a style="font-size: 30px"> Chordcraft </a></th>
+			<th><a style="font-size: 20px" href="/">Strona Główna </a></th>
+			<th><a style="font-size: 20px" href="/tuner">Stroik </a></th>
+		</tr>
+	</table>
+    <h1>Stroik Gitarowy</h1>
+    <div class="string-buttons">
+        <button class="string-button" id="string1" onclick="selectString(1)">Struna 1 (E)</button>
+        <button class="string-button" id="string2" onclick="selectString(2)">Struna 2 (B)</button>
+        <button class="string-button" id="string3" onclick="selectString(3)">Struna 3 (G)</button>
+        <button class="string-button" id="string4" onclick="selectString(4)">Struna 4 (D)</button>
+        <button class="string-button" id="string5" onclick="selectString(5)">Struna 5 (A)</button>
+        <button class="string-button" id="string6" onclick="selectString(6)">Struna 6 (E2)</button>
+    </div>
+
+    <div class="note" id="noteDisplay">Nastroj strunę</div>
+    <div class="freq-difference" id="difference">+0 Hz</div>
+    <div id="micStatus">Oczekiwanie na mikrofon...</div>
+    <div id="currentFrequency">Aktualna częstotliwość: 0 Hz</div>
+
+    <script>
+        // Zaktualizowane częstotliwości strun
+        const stringFrequencies = {
+            1: 650.41, // E
+            2: 468.00, // B
+            3: 375.83, // G
+            4: 281.00, // D
+            5: 246.94, // A
+            6: 329.63  // E2
+        };
+
+        let audioContext;
+        let analyser;
+        let microphone;
+        let isMicActive = false;
+        let selectedString = 1; // Domyślnie wybieramy strunę 1 (E)
+        let lastFrequency = 0;
+        let lastUpdateTime = 0;
+        const frequencyUpdateDelay = 2000; // Zwiększone opóźnienie (2 sekundy)
+        const tuningThreshold = 20;  // Proszę zauważyć, że teraz to 20 Hz, aby była lepsza reakcja
+        const volumeThreshold = 30; // Próg głośności (0-255)
+
+        // Initialize the microphone and audio context
+        function startMic() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    microphone = audioContext.createMediaStreamSource(stream);
+                    microphone.connect(analyser);
+                    analyser.fftSize = 2048;
+                    isMicActive = true;
+                    document.getElementById("micStatus").textContent = "Mikrofon aktywny. Stroimy...";
+                    analyzeFrequency();
+                })
+                .catch(err => {
+                    console.error("Mikrofon nie dostępny:", err);
+                    document.getElementById("micStatus").textContent = "Błąd: Mikrofon nie dostępny.";
+                });
+        }
+
+        // Function to get the closest frequency
+        function getClosestFrequency(freq) {
+            const stringFreq = stringFrequencies[selectedString];
+            const difference = freq - stringFreq;
+            return difference;
+        }
+
+        // Simple noise filter that ignores frequencies below a threshold
+        function filterNoise(dataArray) {
+            const threshold = 10; // Frequency magnitude threshold for noise filtering
+            return dataArray.filter(value => value > threshold);
+        }
+
+        // Filter out frequencies that are outside the guitar range
+        function filterHighFrequencies(frequencies, sampleRate, fftSize) {
+            const nyquist = sampleRate / 2;
+            const maxIndex = Math.floor(600 / nyquist * fftSize); // Max frequency of 600 Hz
+            const minIndex = Math.floor(80 / nyquist * fftSize);  // Min frequency of 80 Hz
+
+            // Create a new array where frequencies outside the guitar range are set to zero
+            const filteredFrequencies = new Array(frequencies.length).fill(0);
+            for (let i = minIndex; i <= maxIndex; i++) {
+                filteredFrequencies[i] = frequencies[i];
+            }
+            return filteredFrequencies;
+        }
+
+        // Function to calculate the average volume (RMS)
+        function calculateVolume(dataArray) {
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i] * dataArray[i];
+            }
+            return Math.sqrt(sum / dataArray.length);
+        }
+
+        // Analyze the incoming frequency
+        function analyzeFrequency() {
+            if (isMicActive) {
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteFrequencyData(dataArray);
+
+                // Calculate the volume of the current signal
+                const volume = calculateVolume(dataArray);
+                if (volume < volumeThreshold) {
+                    // If the volume is too low, ignore this frame
+                    requestAnimationFrame(analyzeFrequency);
+                    return;
+                }
+
+                // Apply noise filtering
+                const filteredData = filterNoise(dataArray);
+
+                // Apply high-frequency filter
+                const filteredHighFrequencies = filterHighFrequencies(filteredData, audioContext.sampleRate, bufferLength);
+
+                if (filteredHighFrequencies.length > 0) {
+                    let maxIndex = 0;
+                    let maxValue = 0;
+                    // Find the peak frequency in the filtered data
+                    for (let i = 0; i < filteredHighFrequencies.length; i++) {
+                        if (filteredHighFrequencies[i] > maxValue) {
+                            maxValue = filteredHighFrequencies[i];
+                            maxIndex = i;
+                        }
+                    }
+
+                    const nyquist = audioContext.sampleRate / 2;
+                    const frequency = maxIndex * nyquist / (bufferLength / 2);
+                    const diff = getClosestFrequency(frequency);
+
+                    // Update the note display and difference
+                    document.getElementById("noteDisplay").textContent = "Struna: " + document.getElementById("string" + selectedString).textContent;
+
+                    let diffText = (diff > 0 ? "+" : "") + Math.round(diff) + " Hz";
+                    document.getElementById("difference").textContent = diffText;
+
+                    // Change the difference color based on the tuning state
+                    if (Math.abs(diff) < tuningThreshold) {
+                        document.getElementById("difference").className = "correct";
+                        document.getElementById("noteDisplay").className = "correct";
+                    } else if (diff > 0) {
+                        document.getElementById("difference").className = "high";
+                        document.getElementById("noteDisplay").className = "high";
+                    } else {
+                        document.getElementById("difference").className = "low";
+                        document.getElementById("noteDisplay").className = "low";
+                    }
+
+                    // Update the current frequency display only after a delay (more rarely)
+                    const currentTime = Date.now();
+                    if (Math.abs(frequency - lastFrequency) > 0.5 || currentTime - lastUpdateTime > frequencyUpdateDelay) {
+                        document.getElementById("currentFrequency").textContent = "Aktualna częstotliwość: " + frequency.toFixed(2) + " Hz";
+                        lastFrequency = frequency;
+                        lastUpdateTime = currentTime;
+                    }
+                }
+
+                requestAnimationFrame(analyzeFrequency);
+            }
+        }
+
+        // Handle string selection
+        function selectString(stringNumber) {
+            selectedString = stringNumber;
+            // Update button states
+            for (let i = 1; i <= 6; i++) {
+                const button = document.getElementById("string" + i);
+                if (i === stringNumber) {
+                    button.classList.add("active");
+                } else {
+                    button.classList.remove("active");
+                }
+            }
+        }
+
+        startMic();
+    </script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Song Details</title>
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static 'style.css' %}">
+</head>
+<body>
+    <table>
+        <tr>
+            <th><a style="font-size: 30px"> Chordcraft </a></th>
+            <th><a style="font-size: 20px" href="/">Strona Główna </a></th>
+            <th><a style="font-size: 20px" href="/tuner">Stroik </a></th>
+        </tr>
+    </table>
+
+    <!-- Kontener na szczegóły piosenki -->
+    <div id="songDetails" style="display: none;">
+        <h1 id="songName" data-id="{{ song.id }}"></h1>
+        <p><strong>Autor:</strong> <span id="songAuthor"></span></p>
+        <p><strong>Kategoria:</strong> <span id="songCategory"></span></p>
+        <p id="transposeCounter" class="transpose-counter">Transpozycja: 0</p>
+        <pre id="songLyrics"></pre>
+        <pre class="chords" id="songChords"></pre>
+    </div>
+
+    <!-- Sekcja recenzji -->
+    <h2>Komentarze</h2>
+    <form id="reviewForm" onsubmit="submitReview(); return false;">
+        <textarea class="poletekstowe2" id="reviewComment" name="reviewComment" placeholder="Twój komentarz" required></textarea><br>
+        <label for="reviewRating">Ocena: </label>
+        <input type="hidden" id="songId" name="songId" value="{{ song.id }}">
+        <input class="poletekstowe2" type="number" id="reviewRating" name="reviewRating" min="1" max="5" required><br>
+        <button class="guzik" type="submit">Wyślij recenzję</button>
+    </form>
+    <div style="height: 180px" id="reviewList"></div>
+
+     <div id="floatingControls">
+
+        <button style="color: #000000" onclick="adjustFontSize(-1)">A-</button>
+        <button onclick="adjustFontSize(1)">A+</button>
+        <button onclick="toggleAutoScroll()">AutoScroll</button>
+        <button onclick="changeAutoScrollSpeed(10)">Speed -</button> <!-- Zmiana logiki: zwiększa czas, spowalnia przewijanie -->
+        <button onclick="changeAutoScrollSpeed(-10)">Speed +</button> <!-- Zmiana logiki: zmniejsza czas, przyspiesza przewijanie -->
+        <button onclick="transposeChords(-1)">Transpose -</button>
+        <button onclick="transposeChords(1)">Transpose +</button>
+        </div>
+
+    <script>
+        // Variables for controlling auto-scroll
+        let autoScrollInterval;
+        let isAutoScrolling = false;
+        let autoScrollSpeed = 30;  // Default auto scroll speed (ms)
+
+        // Toggle auto scroll (start/stop)
+        function toggleAutoScroll() {
+            if (isAutoScrolling) {
+                clearInterval(autoScrollInterval);
+                autoScrollInterval = null;
+                isAutoScrolling = false;
+            } else {
+                autoScrollInterval = setInterval(() => {
+                    window.scrollBy(0, 1);
+                }, autoScrollSpeed);
+                isAutoScrolling = true;
+            }
+        }
+
+        // Change auto scroll speed dynamically without stopping the scroll
+        function changeAutoScrollSpeed(change) {
+            autoScrollSpeed = Math.max(10, autoScrollSpeed + change); // Ensure the speed is always positive and at least 10ms
+
+            if (isAutoScrolling) {
+                clearInterval(autoScrollInterval);
+                autoScrollInterval = setInterval(() => {
+                    window.scrollBy(0, 1);
+                }, autoScrollSpeed);
+            }
+        }
+
+        let currentFontSize = 14;
+
+        function adjustFontSize(change) {
+            const contentArea = document.getElementById("songDetails");
+            if (contentArea) {
+                currentFontSize += change;
+                contentArea.style.fontSize = currentFontSize + "px";
+            }
+        }
+
+        const chordsSharp = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].reverse();
+        const chordsFlat = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'].reverse();
+
+        // Funkcja transponująca akordy
+        function transposeChord(chord, semitones) {
+            let root = chord.match(/[A-G][#b]?/)[0];
+            let suffix = chord.slice(root.length);
+
+            let index = chordsSharp.indexOf(root);
+            let chordList = chordsSharp;
+
+            if (index === -1) {
+                index = chordsFlat.indexOf(root);
+                chordList = chordsFlat;
+            }
+
+            if (index === -1) return chord;
+
+            while (root.includes('#') && root.length > 2) {
+                root = root.slice(0, -1);
+            }
+
+            let newIndex = (index + semitones + 12) % 12;
+
+            return chordList[newIndex] + suffix;
+        }
+
+        // Funkcja transponująca wszystkie akordy w tekście
+        function transposeChords(change) {
+            const chordsElement = document.getElementById("songChords");
+            const lines = chordsElement.textContent.split('\n');
+            const transposedLines = lines.map(line => {
+                return line.replace(/\b[A-G][#b]?(|m|maj|maj7|dim|aug|sus|7)?\b/g, match => {
+                    return transposeChord(match, change);
+                });
+            });
+            chordsElement.textContent = transposedLines.join('\n');
+
+            // Zaktualizuj wartość transpozycji
+            updateTransposeCounter(change);
+        }
+
+        // Funkcja aktualizująca licznik transpozycji
+        function updateTransposeCounter(change) {
+            const transposeCounter = document.getElementById("transposeCounter");
+            let currentTranspose = parseInt(transposeCounter.textContent.replace('Transpozycja: ', ''), 10);
+            currentTranspose += change;
+            transposeCounter.textContent = `Transpozycja: ${currentTranspose}`;
+        }
+
+        function viewSongDetails(songId) {
+            fetch(`/songs/${songId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('songName').textContent = data.name;
+                    document.getElementById('songName').dataset.id = songId;
+                    document.getElementById('songAuthor').textContent = data.author;
+                    document.getElementById('songCategory').textContent = data.category;
+                    document.getElementById('songChords').textContent = data.chords;
+                    document.getElementById('songDetails').style.display = 'block';
+                    loadReviews(songId);
+                })
+                .catch(error => console.error('Error fetching song details:', error));
+        }
+
+        function loadReviews(songId) {
+            fetch(`/reviews/${songId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const reviewList = document.getElementById('reviewList');
+                    reviewList.innerHTML = '';
+                    data.forEach(review => {
+                        const reviewItem = document.createElement('div');
+                        reviewItem.innerHTML = `
+                            <div style="text-align: justify-all" class="komentarze">${review.comment}</div>
+                            <div style="text-align: center" class="komentarze"><strong>Ocena:</strong> ${review.rating}</div>
+                            <hr>
+                        `;
+                        reviewList.appendChild(reviewItem);
+                    });
+                })
+                .catch(error => console.error('Error fetching reviews:', error));
+        }
+
+        function submitReview() {
+            const songId = document.getElementById('songName').dataset.id;
+            const comment = document.getElementById('reviewComment').value;
+            const rating = document.getElementById('reviewRating').value;
+
+            const reviewData = {
+                song_id: songId,
+                comment: comment,
+                rating: rating
+            };
+
+            fetch('/reviews/create/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(reviewData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadReviews(songId);
+                document.getElementById('reviewComment').value = '';
+                document.getElementById('reviewRating').value = '';
+            })
+            .catch(error => console.error('Error submitting review:', error));
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const songId = urlParams.get('id');
+            if (songId) {
+                viewSongDetails(songId);
+            }
+        });
+    </script>
+    <div style="height: 180px"></div>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chordcraft</title>
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static 'style.css' %}">
+</head>
+<body>
+
+    <table>
+        <tr>
+            <th><a style="font-size: 30px">Chordcraft</a></th>
+            <th><a style="font-size: 20px" href="/">Strona Główna</a></th>
+            <th><a style="font-size: 20px" href="/tuner">Stroik</a></th>
+        </tr>
+    </table>
+
+    <!-- Lista wyników wyszukiwania piosenek -->
+    <h2>Lista Piosenek</h2>
+    <input class="poletekstowe" type="text" id="searchQuery" placeholder="Wyszukaj piosenki">
+    <button class="guzik" onclick="searchSongs()">Szukaj</button>
+
+    <table id="songTable">
+        <thead>
+            <tr>
+                <th style="font-size: 20px">Nazwa</th>
+                <th style="font-size: 20px">Autor</th>
+                <th style="font-size: 20px">Kategoria</th>
+                <th style="font-size: 20px">Wyświetlenia</th>
+                <th style="font-size: 20px">Średnia Ocena</th>
+                <th style="font-size: 20px">Liczba Ocen</th>
+
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <!-- Sekcja wyświetlania szczegółów piosenki -->
+    <div id="songDetails" style="display: none;">
+        <h2>Song Details</h2>
+        <p><strong>Name:</strong> <span id="songName"></span></p>
+        <p><strong>Author:</strong> <span id="songAuthor"></span></p>
+        <p><strong>Category:</strong> <span id="songCategory"></span></p>
+        <pre id="songLyrics"></pre>
+        <p><strong>Chords:</strong></p>
+        <pre id="songChords"></pre>
+
+        <!-- Sekcja recenzji -->
+        <h3>Reviews</h3>
+        <div id="reviewList"></div>
+
+        <!-- Dodaj nową recenzję -->
+        <h4>Add a Review</h4>
+        <textarea id="reviewComment" placeholder="Write a review..."></textarea>
+        <select id="reviewRating">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+        </select>
+        <button onclick="submitReview()">Submit Review</button>
+    </div>
+
+    <script>
+        // Funkcja wyszukiwania piosenek
+        function searchSongs() {
+            const query = document.getElementById('searchQuery').value;
+
+            // Wyczyść tabelę wyników przed nowym wyszukiwaniem
+            const tableBody = document.querySelector('#songTable tbody');
+            tableBody.innerHTML = '';
+
+            fetch(`http://127.0.0.1:8000/search/?query=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(song => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td style="font-size: 20px">
+                                <a href="http://127.0.0.1:8000/tab?id=${song.id}">${song.name}</a>
+                            </td>
+                            <td style="font-size: 20px"><a>${song.author}</a></td>
+                            <td style="font-size: 20px"><a>${song.category}</a></td>
+                            <td style="font-size: 20px"><a>${song.nr_viewed}</a></td>
+                            <td style="font-size: 20px"><a>${song.average_rating}</a></td>
+                            <td style="font-size: 20px"><a>${song.rating_count}</a></td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(error => console.error('Error fetching songs:', error));
+        }
+    </script>
+
+</body>
+</html>
